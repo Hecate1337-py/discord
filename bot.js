@@ -4,26 +4,32 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const { Storage } = require('megajs');
+const crypto = require('crypto');
+
+// 🔹 Perbaikan untuk `crypto.getRandomValues()`
+if (!globalThis.crypto) {
+    globalThis.crypto = {
+        getRandomValues: (buffer) => crypto.randomFillSync(buffer),
+    };
+}
 
 const TOKEN = process.env.DISCORD_BOT_TOKEN;
 const ALLOWED_CHANNEL_ID = process.env.ALLOWED_CHANNEL_ID;
 const MEGA_EMAIL = process.env.MEGA_EMAIL;
 const MEGA_PASSWORD = process.env.MEGA_PASSWORD;
-const AUTO_DELETE_DELAY = 24 * 60 * 60 * 1000; // 24 jam
+const AUTO_DELETE_DELAY = 24 * 60 * 60 * 1000; // 24 jam (1 hari)
 const RECEIVERS = ["rizukun0055", "umadimari", "zawarudo0797"];
 
-// Cek apakah environment variabel sudah diatur
 if (!TOKEN || !ALLOWED_CHANNEL_ID || !MEGA_EMAIL || !MEGA_PASSWORD) {
     console.error("❌ Token, Channel ID, atau kredensial MEGA tidak ditemukan! Periksa file .env");
     process.exit(1);
 }
 
-// 🔹 Inisialisasi Discord Bot
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
 
-// 🔹 Inisialisasi MEGA Storage
+// 🔹 Login ke MEGA
 const mega = new Storage({ email: MEGA_EMAIL, password: MEGA_PASSWORD });
 
 (async () => {
@@ -36,7 +42,7 @@ const mega = new Storage({ email: MEGA_EMAIL, password: MEGA_PASSWORD });
     }
 })();
 
-// 🔹 Fungsi Membagi File menjadi 3 bagian
+// 🔹 Fungsi membagi file menjadi 3 bagian
 async function splitTxtFile(filePath) {
     try {
         if (!fs.existsSync(filePath)) throw new Error(`File ${filePath} tidak ditemukan.`);
@@ -63,10 +69,11 @@ async function splitTxtFile(filePath) {
     }
 }
 
-// 🔹 Fungsi Upload ke MEGA
+// 🔹 Fungsi mengunggah file ke MEGA
 async function uploadToMega(filePath) {
     try {
         if (!fs.existsSync(filePath)) throw new Error(`File ${filePath} tidak ditemukan.`);
+
         const fileName = path.basename(filePath);
         const fileSize = fs.statSync(filePath).size;
         console.log(`🚀 Mengunggah ${fileName} ke MEGA (${fileSize} bytes)...`);
@@ -99,7 +106,7 @@ async function uploadToMega(filePath) {
     }
 }
 
-// 🔹 Fungsi Menghapus File dari MEGA
+// 🔹 Fungsi menghapus file dari MEGA
 async function deleteFromMega(fileName) {
     try {
         const files = await mega.root.children;
@@ -113,7 +120,7 @@ async function deleteFromMega(fileName) {
     }
 }
 
-// 🔹 Fungsi Mengunduh File dari Catbox
+// 🔹 Fungsi mengunduh file dari Catbox
 async function downloadFromCatbox(url) {
     try {
         const fileName = url.split('/').pop();
@@ -132,7 +139,7 @@ async function downloadFromCatbox(url) {
     }
 }
 
-// 🔹 Fungsi Memproses Link Catbox
+// 🔹 Fungsi memproses link Catbox
 async function processCatboxLink(message, url) {
     if (message.channel.id !== ALLOWED_CHANNEL_ID) return;
     const processingMessage = await message.channel.send("📥 Mengunduh dan memproses file...");
@@ -167,6 +174,7 @@ async function processCatboxLink(message, url) {
 
         const sentMessage = await message.channel.send({ embeds: [embed] });
 
+        // Hapus otomatis setelah waktu tertentu
         setTimeout(async () => {
             for (const file of uploadedFiles) {
                 await deleteFromMega(file.file.name);
