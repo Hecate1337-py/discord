@@ -9,19 +9,21 @@ const TOKEN = process.env.DISCORD_BOT_TOKEN;
 const ALLOWED_CHANNEL_ID = process.env.ALLOWED_CHANNEL_ID;
 const MEGA_EMAIL = process.env.MEGA_EMAIL;
 const MEGA_PASSWORD = process.env.MEGA_PASSWORD;
-const AUTO_DELETE_DELAY = 24 * 60 * 60 * 1000; // 24 jam (1 hari)
+const AUTO_DELETE_DELAY = 24 * 60 * 60 * 1000; // 24 jam
 const RECEIVERS = ["rizukun0055", "umadimari", "zawarudo0797"];
 
+// Cek apakah environment variabel sudah diatur
 if (!TOKEN || !ALLOWED_CHANNEL_ID || !MEGA_EMAIL || !MEGA_PASSWORD) {
     console.error("❌ Token, Channel ID, atau kredensial MEGA tidak ditemukan! Periksa file .env");
     process.exit(1);
 }
 
+// 🔹 Inisialisasi Discord Bot
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
 
-// 🔹 Login ke MEGA
+// 🔹 Inisialisasi MEGA Storage
 const mega = new Storage({ email: MEGA_EMAIL, password: MEGA_PASSWORD });
 
 (async () => {
@@ -34,7 +36,7 @@ const mega = new Storage({ email: MEGA_EMAIL, password: MEGA_PASSWORD });
     }
 })();
 
-// 🔹 Fungsi membagi file menjadi 3 bagian
+// 🔹 Fungsi Membagi File menjadi 3 bagian
 async function splitTxtFile(filePath) {
     try {
         if (!fs.existsSync(filePath)) throw new Error(`File ${filePath} tidak ditemukan.`);
@@ -61,11 +63,10 @@ async function splitTxtFile(filePath) {
     }
 }
 
-// 🔹 Fungsi mengunggah file ke MEGA (FIX)
+// 🔹 Fungsi Upload ke MEGA
 async function uploadToMega(filePath) {
     try {
         if (!fs.existsSync(filePath)) throw new Error(`File ${filePath} tidak ditemukan.`);
-
         const fileName = path.basename(filePath);
         const fileSize = fs.statSync(filePath).size;
         console.log(`🚀 Mengunggah ${fileName} ke MEGA (${fileSize} bytes)...`);
@@ -98,7 +99,7 @@ async function uploadToMega(filePath) {
     }
 }
 
-// 🔹 Fungsi menghapus file dari MEGA
+// 🔹 Fungsi Menghapus File dari MEGA
 async function deleteFromMega(fileName) {
     try {
         const files = await mega.root.children;
@@ -112,7 +113,7 @@ async function deleteFromMega(fileName) {
     }
 }
 
-// 🔹 Fungsi mengunduh file dari Catbox
+// 🔹 Fungsi Mengunduh File dari Catbox
 async function downloadFromCatbox(url) {
     try {
         const fileName = url.split('/').pop();
@@ -131,7 +132,7 @@ async function downloadFromCatbox(url) {
     }
 }
 
-// 🔹 Fungsi memproses link Catbox
+// 🔹 Fungsi Memproses Link Catbox
 async function processCatboxLink(message, url) {
     if (message.channel.id !== ALLOWED_CHANNEL_ID) return;
     const processingMessage = await message.channel.send("📥 Mengunduh dan memproses file...");
@@ -166,7 +167,6 @@ async function processCatboxLink(message, url) {
 
         const sentMessage = await message.channel.send({ embeds: [embed] });
 
-        // Hapus otomatis setelah waktu tertentu
         setTimeout(async () => {
             for (const file of uploadedFiles) {
                 await deleteFromMega(file.file.name);
